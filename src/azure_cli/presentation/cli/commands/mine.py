@@ -15,6 +15,7 @@ from azure_cli.presentation.cli.formatters import (
     wants_json,
     work_items_summary,
     work_items_table,
+    work_items_urls,
 )
 
 #: The name of the command.
@@ -74,6 +75,7 @@ def register(app: typer.Typer) -> None:
 
             typer.echo(work_items_table(summaries))
             typer.echo(work_items_summary(summaries))
+            typer.echo(work_items_urls(summaries))
 
     app.command(COMMAND_NAME, help="List the work items assigned to you.")(list_my_work_items)
     app.command(COMMAND_ALIAS, help="Alias of 'mine'.")(list_my_work_items)

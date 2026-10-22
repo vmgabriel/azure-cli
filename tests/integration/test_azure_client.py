@@ -28,7 +28,7 @@ def test_the_work_items_are_listed(
     client: AzureDevOpsClient,
     stub: StubAzureDevOps,
 ) -> None:
-    summaries = client.list_work_items("ada@acme.com")
+    summaries = client.list_work_items()
 
     assert summaries
     assert all(isinstance(summary, WorkItemSummary) for summary in summaries)
@@ -47,13 +47,13 @@ def test_the_wiql_query_is_sent_to_the_server(
     client: AzureDevOpsClient,
     stub: StubAzureDevOps,
 ) -> None:
-    client.list_work_items("ada@acme.com")
+    client.list_work_items()
 
     wiql_requests = [request for request in stub.requests if request.path == "/_apis/wit/wiql"]
     assert wiql_requests
 
     query = wiql_requests[0].body["query"]
-    assert "[System.AssignedTo] = 'ada@acme.com'" in query
+    assert "[System.AssignedTo] = @me" in query
     assert "ORDER BY [System.ChangedDate] DESC" in query
 
 

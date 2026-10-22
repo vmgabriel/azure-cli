@@ -65,7 +65,7 @@ ANSI_STYLES: dict[str, str] = {
 ANSI_RESET = "\033[0m"
 
 #: The columns of the table of the work items.
-WORK_ITEM_COLUMNS = ("ID", "Points", "State", "Title", "URL")
+WORK_ITEM_COLUMNS = ("ID", "Points", "State", "Title")
 
 
 def colors_enabled() -> bool:
@@ -141,7 +141,9 @@ def work_items_table(summaries: Sequence[WorkItemSummary]) -> str:
     """Render the work items as a table.
 
     The state of every work item carries a coloured marker, so the state of
-    the sprint can be read at a glance.
+    the sprint can be read at a glance. The browser URL of each work item is
+    rendered separately by :func:`work_items_urls`: a long link would fold
+    the table.
 
     Args:
         summaries: The work items to render.
@@ -157,10 +159,30 @@ def work_items_table(summaries: Sequence[WorkItemSummary]) -> str:
             Text(format_story_points(summary.story_points)),
             Text(f"{STATE_MARKER} {state}", style=state_style(state)),
             Text(summary.title),
-            Text(summary.url),
         )
 
     return _render(table)
+
+
+def work_items_urls(summaries: Sequence[WorkItemSummary]) -> str:
+    """Render the browser URLs of the work items, one per line.
+
+    The URLs are kept out of the table on purpose: a long link would fold the
+    table and hide the columns. Printed as a separate list, most terminals
+    detect them and make them clickable.
+
+    Args:
+        summaries: The work items to link.
+
+    Returns:
+        The list of URLs, ready to be printed.
+    """
+    if not summaries:
+        return ""
+
+    lines = ["URLs:"]
+    lines.extend(f"  {summary.id.value}: {summary.url}" for summary in summaries if summary.url)
+    return "\n".join(lines)
 
 
 def work_items_summary(summaries: Sequence[WorkItemSummary]) -> str:

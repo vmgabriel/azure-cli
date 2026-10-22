@@ -28,6 +28,7 @@ from azure_cli.presentation.cli.formatters import (
     wants_json,
     work_items_summary,
     work_items_table,
+    work_items_urls,
 )
 
 #: The escape that starts an ANSI colour.
@@ -151,11 +152,29 @@ def test_the_summary_uses_the_singular_for_one_work_item() -> None:
 def test_the_work_items_are_rendered_as_a_table() -> None:
     output = work_items_table([_summary()])
 
-    for column in ("ID", "Points", "State", "Title", "URL"):
+    for column in ("ID", "Points", "State", "Title"):
         assert column in output
     assert "42" in output
     assert "Login fails on Safari" in output
     assert STATE_MARKER in output
+
+
+def test_the_table_does_not_render_the_url() -> None:
+    output = work_items_table([_summary()])
+
+    assert "URL" not in output
+    assert "https://" not in output
+
+
+def test_the_urls_are_rendered_as_a_separate_list() -> None:
+    output = work_items_urls([_summary()])
+
+    assert output.startswith("URLs:")
+    assert "42: https://dev.azure.com/acme/widgets/_workitems/edit/42" in output
+
+
+def test_the_urls_of_an_empty_list_are_empty() -> None:
+    assert work_items_urls([]) == ""
 
 
 def test_the_table_colours_the_state_when_it_can(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -182,13 +201,13 @@ def test_the_long_values_are_folded_not_cut(monkeypatch: pytest.MonkeyPatch) -> 
     assert "".join(output.split()).count("x") == 100
 
 
-def test_a_long_url_is_folded_without_losing_a_character(
+def test_a_long_url_is_kept_whole_out_of_the_table(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("COLUMNS", "80")
     summary = _summary(title="Short title", url="https://dev.azure.com/" + "x" * 80)
 
-    output = work_items_table([summary])
+    output = work_items_urls([summary])
 
     assert output.count("x") == 80
 

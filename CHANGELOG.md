@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The `mine` (and `workitems`) command now asks Azure DevOps for the work
+  items with the `@me` WIQL macro instead of filtering by the configured
+  e-mail address: the identity is resolved server-side from the personal
+  access token, so `default_email` is no longer required to list your work
+  items.
+- The `mine` output shows a summary table (`ID`, `Points`, `State`, `Title`)
+  followed by a separate, clickable list of work item URLs.
+
 ## [0.1.0] - 2024-01-01
 
 Initial release of `azure-cli`.

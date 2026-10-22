@@ -8,7 +8,6 @@ import json
 import pytest
 from typer.testing import CliRunner
 
-from azure_cli.application.use_cases.list_my_work_items import ListMyWorkItemsUseCase
 from azure_cli.domain.entities.work_item import WorkItemSummary
 from azure_cli.domain.exceptions import AuthenticationError
 from azure_cli.domain.value_objects.work_item_id import WorkItemId
@@ -247,11 +246,22 @@ def test_mine_shows_the_work_items_of_the_user(
     result = cli_runner.invoke(app, ["mine"], obj=container)
 
     assert result.exit_code == 0
-    assert gateway.requested_emails == ["ada@example.com"]
+    assert gateway.list_calls == 1
     assert "Login fails on Safari" in result.output
     assert "ID" in result.output
     assert "Points" in result.output
     assert "Total: 3 points in 1 work item" in result.output
+
+
+def test_mine_lists_the_urls_of_the_work_items(
+    cli_runner: CliRunner,
+    container: Container,
+) -> None:
+    result = cli_runner.invoke(app, ["mine"], obj=container)
+
+    assert result.exit_code == 0
+    assert "URLs:" in result.output
+    assert "/_workitems/edit/42" in result.output
 
 
 def test_mine_can_be_called_by_its_alias(
@@ -321,24 +331,6 @@ def test_mine_explains_the_emptiness(
 
     assert result.exit_code == 0
     assert "No tienes work items activos asignados." in result.output
-
-
-def test_mine_reports_a_missing_email(
-    cli_runner: CliRunner,
-    container: Container,
-    gateway: FakeAzureDevOpsGateway,
-) -> None:
-    settings = container.settings.model_copy(update={"default_email": None})
-    container = dataclasses.replace(
-        container,
-        settings=settings,
-        list_my_work_items=ListMyWorkItemsUseCase(gateway, settings),
-    )
-
-    result = cli_runner.invoke(app, ["mine"], obj=container)
-
-    assert result.exit_code == 1
-    assert "default_email" in result.output
 
 
 def test_mine_reports_the_errors_of_the_use_case(

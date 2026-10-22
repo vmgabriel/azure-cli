@@ -27,9 +27,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.live]
 
 def test_list_work_items_returns_domain_summaries(
     live_client: AzureDevOpsClient,
-    live_email: str,
 ) -> None:
-    summaries = live_client.list_work_items(live_email)
+    summaries = live_client.list_work_items()
 
     assert isinstance(summaries, list)
     assert len(summaries) <= MAX_LIST_ITEMS
@@ -48,9 +47,8 @@ def test_list_work_items_returns_domain_summaries(
 
 def test_list_work_items_does_not_return_duplicates(
     live_client: AzureDevOpsClient,
-    live_email: str,
 ) -> None:
-    summaries = live_client.list_work_items(live_email)
+    summaries = live_client.list_work_items()
 
     ids = [summary.id.value for summary in summaries]
 

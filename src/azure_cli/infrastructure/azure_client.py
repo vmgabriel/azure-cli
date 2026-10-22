@@ -2,8 +2,8 @@
 
 Implements the integration points requested by the user:
 
-* :meth:`AzureDevOpsClient.list_work_items` — WIQL query filtered by
-  assignee, returning :class:`~azure_cli.domain.entities.work_item.WorkItemSummary`
+* :meth:`AzureDevOpsClient.list_work_items` — WIQL query filtered with the
+  ``@me`` macro, returning :class:`~azure_cli.domain.entities.work_item.WorkItemSummary`
   objects ordered by ``ChangedDate DESC`` with a cap of 50 items.
 * :meth:`AzureDevOpsClient.get_workitem_by_id` — returns a
   :class:`~azure_cli.domain.entities.work_item.WorkItemDetail` with HTML
@@ -132,15 +132,13 @@ class AzureDevOpsClient(AzureDevOpsGateway):
         )
 
     # -- public API ---------------------------------------------------------
-    def list_work_items(self, email: str) -> list[WorkItemSummary]:
-        """List the active User Stories assigned to a user.
+    def list_work_items(self) -> list[WorkItemSummary]:
+        """List the active User Stories assigned to the current user.
 
         The query looks for ``User Story`` items that are not in
-        ``Closed``, ``Done`` or ``Removed``, assigned to ``email``, orders them
-        by ``ChangedDate DESC`` and returns at most 50 of them.
-
-        Args:
-            email: The e-mail address of the assigned user.
+        ``Closed``, ``Done`` or ``Removed``, assigned to the user behind the
+        credentials (``@me``), orders them by ``ChangedDate DESC`` and
+        returns at most 50 of them.
 
         Returns:
             A list of :class:`WorkItemSummary` objects.
@@ -150,17 +148,12 @@ class AzureDevOpsClient(AzureDevOpsGateway):
             AzureApiError: if Azure DevOps returns an error response.
             TransportError: if the API cannot be reached.
         """
-        if not email or not email.strip():
-            logger.warning("list_work_items called with an empty email")
-            return []
+        logger.info("Listing the work items of the current user (max %s)", MAX_LIST_ITEMS)
 
-        email = email.strip()
-        logger.info("Listing work items for %s (max %s)", email, MAX_LIST_ITEMS)
-
-        wiql = self._build_list_wiql(email)
+        wiql = self._build_list_wiql()
         work_item_ids = self._query_wiql_ids(wiql, limit=MAX_LIST_ITEMS)
         if not work_item_ids:
-            logger.debug("No work items found for %s", email)
+            logger.debug("No work items found for the current user")
             return []
 
         dtos = self._get_work_items_batch(work_item_ids, SUMMARY_FIELDS)
@@ -176,10 +169,6 @@ class AzureDevOpsClient(AzureDevOpsGateway):
                 continue
 
             assignee = fields.get("System.AssignedTo")
-            if not _identity_matches_email(assignee, email):
-                logger.debug("Skipping work item %s: assigned to somebody else", work_item_id)
-                continue
-
             title = _as_text(fields.get("System.Title")) or f"Work item {work_item_id}"
             state = _as_text(fields.get("System.State")) or "New"
             work_item_type = _as_text(fields.get("System.WorkItemType")) or "User Story"
@@ -337,9 +326,13 @@ class AzureDevOpsClient(AzureDevOpsGateway):
         return deduplicated
 
     # -- WIQL / queries -----------------------------------------------------
-    def _build_list_wiql(self, email: str) -> str:
-        """Build the WIQL query for :meth:`list_work_items`."""
-        escaped_email = self._escape_wiql(email)
+    def _build_list_wiql(self) -> str:
+        """Build the WIQL query for :meth:`list_work_items`.
+
+        ``@me`` is a macro understood by Azure DevOps: it is resolved on the
+        server from the credentials of the request, which avoids knowing (and
+        passing around) the e-mail address of the user.
+        """
         excluded = ", ".join(f"'{self._escape_wiql(state)}'" for state in EXCLUDED_STATES)
         types = ", ".join(f"'{self._escape_wiql(t)}'" for t in LIST_WORK_ITEM_TYPES)
 
@@ -348,7 +341,7 @@ class AzureDevOpsClient(AzureDevOpsGateway):
             "FROM WorkItems "
             f"WHERE [System.TeamProject] = '{self._escape_wiql(self.project)}' "
             f"AND [System.WorkItemType] IN ({types}) "
-            f"AND [System.AssignedTo] = '{escaped_email}' "
+            "AND [System.AssignedTo] = @me "
             f"AND [System.State] NOT IN ({excluded}) "
             "ORDER BY [System.ChangedDate] DESC"
         )
@@ -652,34 +645,6 @@ def _parse_datetime(value: Any) -> datetime | None:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
     return parsed.astimezone(UTC)
-
-
-def _identity_matches_email(value: Any, email: str) -> bool:
-    """Whether the assigned identity can be the given e-mail address.
-
-    An identity that does not expose an e-mail address cannot be compared:
-    it is kept, so that a display name never hides a work item.
-    """
-    if value is None:
-        return True
-
-    candidates: list[str] = []
-    if isinstance(value, Mapping):
-        for key in ("uniqueName", "email"):
-            raw = value.get(key)
-            if raw:
-                candidates.append(str(raw))
-        other = value.get("otherMails")
-        if isinstance(other, Sequence) and not isinstance(other, str):
-            candidates.extend(str(item) for item in other)
-    else:
-        candidates.append(str(value))
-
-    addresses = [candidate.strip().lower() for candidate in candidates if "@" in candidate]
-    if not addresses:
-        return True
-
-    return email.strip().lower() in addresses
 
 
 def _mentions_work_item(pr: Mapping[str, Any], needle: str) -> bool:

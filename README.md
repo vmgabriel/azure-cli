@@ -144,7 +144,8 @@ project = "bold"
 api_version = "7.1"
 
 [user]
-# Default assignee of `azure-cli list` and the user of `azure-cli mine`.
+# Default assignee of `azure-cli list`. `azure-cli mine` does not need it:
+# Azure DevOps resolves the current user with the `@me` macro.
 email = "gabriel.vargas@bold.co"
 
 # Optional: reserved for a future Slack integration.
@@ -217,7 +218,7 @@ The highest priority wins:
 | `AZURE_DEVOPS_API_VERSION` | no | `7.1` | REST API version |
 | `AZURE_DEVOPS_TIMEOUT` | no | `15` | HTTP timeout in seconds |
 | `AZURE_DEVOPS_OUTPUT_FORMAT` | no | `text` | `text` or `json` |
-| `AZURE_DEVOPS_DEFAULT_EMAIL` | no | | E-mail used by `mine` and `list` |
+| `AZURE_DEVOPS_DEFAULT_EMAIL` | no | | E-mail used by `list`; `mine` resolves the user with `@me` |
 | `AZURE_DEVOPS_BASE_URL` | no | | Override the API root (Azure DevOps Server) |
 | `AZURE_CLI_CONFIG_PATH` | no | `~/.azure_cli/config.toml` | Path to the TOML file |
 | `AZURE_CLI_PROFILE` | no | `default` | Profile of the TOML file |

@@ -82,7 +82,7 @@ def _container(error: Exception) -> Container:
         update_work_item=UpdateWorkItem(repository),
         add_comment=AddComment(repository),
         get_related_links=GetRelatedLinks(git_repository, repository),
-        list_my_work_items=ListMyWorkItemsUseCase(gateway, settings),
+        list_my_work_items=ListMyWorkItemsUseCase(gateway),
         get_workitem_details=GetWorkItemDetailsUseCase(gateway),
     )
 

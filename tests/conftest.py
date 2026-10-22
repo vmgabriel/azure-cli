@@ -199,13 +199,13 @@ class FakeAzureDevOpsGateway(AzureDevOpsGateway):
     summaries: list[WorkItemSummary] = field(default_factory=list)
     details: dict[int, WorkItemDetail] = field(default_factory=dict)
     links: list[RelatedLink] = field(default_factory=list)
-    requested_emails: list[str] = field(default_factory=list)
+    list_calls: int = 0
     requested_ids: list[int] = field(default_factory=list)
     error: Exception | None = None
     links_error: Exception | None = None
 
-    def list_work_items(self, email: str) -> list[WorkItemSummary]:
-        self.requested_emails.append(email)
+    def list_work_items(self) -> list[WorkItemSummary]:
+        self.list_calls += 1
         if self.error is not None:
             raise self.error
         return list(self.summaries)
@@ -312,7 +312,7 @@ def container(
         update_work_item=UpdateWorkItem(repository),
         add_comment=AddComment(repository),
         get_related_links=GetRelatedLinks(git_repository, repository),
-        list_my_work_items=ListMyWorkItemsUseCase(gateway, settings),
+        list_my_work_items=ListMyWorkItemsUseCase(gateway),
         get_workitem_details=GetWorkItemDetailsUseCase(gateway),
     )
 

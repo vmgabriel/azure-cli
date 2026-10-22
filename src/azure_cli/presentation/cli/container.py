@@ -114,7 +114,7 @@ class Container:
             update_work_item=UpdateWorkItem(work_item_repository),
             add_comment=AddComment(work_item_repository),
             get_related_links=GetRelatedLinks(git_repository, work_item_repository),
-            list_my_work_items=ListMyWorkItemsUseCase(gateway, settings),
+            list_my_work_items=ListMyWorkItemsUseCase(gateway),
             get_workitem_details=GetWorkItemDetailsUseCase(gateway),
         )
 

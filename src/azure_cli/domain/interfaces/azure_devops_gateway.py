@@ -26,8 +26,12 @@ class AzureDevOpsGateway(ABC):
     """
 
     @abstractmethod
-    def list_work_items(self, email: str) -> list[WorkItemSummary]:
-        """Return the active work items assigned to the given e-mail address.
+    def list_work_items(self) -> list[WorkItemSummary]:
+        """Return the active work items assigned to the current user.
+
+        The identity of the user is not passed as an argument: Azure DevOps
+        resolves it from the credentials of the request with the ``@me``
+        macro, so the caller never has to know the e-mail address.
 
         The work items come in the order given by Azure DevOps (the most
         recently changed first).

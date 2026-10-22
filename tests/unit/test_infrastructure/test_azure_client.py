@@ -25,6 +25,7 @@ from azure_cli.domain.exceptions import (
 from azure_cli.domain.interfaces.azure_devops_gateway import AzureDevOpsGateway
 from azure_cli.domain.value_objects.link_kind import LinkKind
 from azure_cli.infrastructure.azure_client import (
+    MAX_BATCH_SIZE,
     MAX_LIST_ITEMS,
     SUMMARY_FIELDS,
     AzureDevOpsClient,
@@ -125,7 +126,7 @@ def test_list_work_items_returns_summaries(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    summaries = client.list_work_items("ada@acme.com")
+    summaries = client.list_work_items()
 
     assert len(summaries) == 2
     assert all(isinstance(summary, WorkItemSummary) for summary in summaries)
@@ -151,7 +152,7 @@ def test_list_work_items_queries_the_expected_fields(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    client.list_work_items("ada@acme.com")
+    client.list_work_items()
 
     assert "System.Id" in captured["fields"]
     assert "System.Title" in captured["fields"]
@@ -162,7 +163,7 @@ def test_list_work_items_queries_the_expected_fields(monkeypatch: pytest.MonkeyP
     assert captured["fields"] == ",".join(SUMMARY_FIELDS)
 
 
-def test_the_wiql_query_filters_on_the_email_and_the_state(
+def test_the_wiql_query_filters_on_the_current_user_and_the_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = make_client()
@@ -176,33 +177,17 @@ def test_the_wiql_query_filters_on_the_email_and_the_state(
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    client.list_work_items("ada@acme.com")
+    client.list_work_items()
 
     query = captured["wiql"]
-    assert "[System.AssignedTo] = 'ada@acme.com'" in query
+    assert "[System.AssignedTo] = @me" in query
+    assert "ada@acme.com" not in query
     assert "'Closed'" in query
     assert "'Done'" in query
     assert "'Removed'" in query
     assert "[System.State] NOT IN" in query
     assert "[System.WorkItemType] IN ('User Story')" in query
     assert "ORDER BY [System.ChangedDate] DESC" in query
-
-
-def test_the_wiql_query_escapes_the_email(monkeypatch: pytest.MonkeyPatch) -> None:
-    client = make_client()
-    captured: dict[str, Any] = {}
-
-    def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
-        if url.endswith("/wit/wiql"):
-            captured["wiql"] = kwargs["json"]["query"]
-            return make_response(WIQL_RESPONSE)
-        return make_response(WORK_ITEMS_RESPONSE)
-
-    monkeypatch.setattr(client.session, "request", fake_request)
-
-    client.list_work_items("o'brien@acme.com")
-
-    assert "'o''brien@acme.com'" in captured["wiql"]
 
 
 def test_list_work_items_returns_at_most_fifty_items(
@@ -218,23 +203,32 @@ def test_list_work_items_returns_at_most_fifty_items(
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    client.list_work_items("ada@acme.com")
+    client.list_work_items()
 
     assert MAX_LIST_ITEMS == 50
 
 
-def test_list_work_items_without_an_email_does_not_call_the_api(
+def test_the_story_points_are_fetched_in_batches_of_two_hundred_ids(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = make_client()
+    relations = [{"id": index} for index in range(1, 451)]
+    requested_ids: list[list[str]] = []
 
-    def fail(*args: Any, **kwargs: Any) -> requests.Response:
-        raise AssertionError("the API must not be called")
+    def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
+        if url.endswith("/wit/wiql"):
+            return make_response({"workItemRelations": relations})
+        requested_ids.append(kwargs["params"]["ids"].split(","))
+        return make_response({"value": []})
 
-    monkeypatch.setattr(client.session, "request", fail)
+    monkeypatch.setattr(client.session, "request", fake_request)
 
-    assert client.list_work_items("") == []
-    assert client.list_work_items("   ") == []
+    client.list_work_items()
+
+    # Only the first 50 ids survive the WIQL cap, but each batch respects the
+    # 200 ids limit of the Azure DevOps API.
+    assert MAX_BATCH_SIZE == 200
+    assert all(len(chunk) <= MAX_BATCH_SIZE for chunk in requested_ids)
 
 
 def test_list_work_items_without_a_match_returns_an_empty_list(
@@ -247,7 +241,7 @@ def test_list_work_items_without_a_match_returns_an_empty_list(
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    assert client.list_work_items("ada@acme.com") == []
+    assert client.list_work_items() == []
 
 
 def test_the_change_date_is_read(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -277,7 +271,7 @@ def test_the_change_date_is_read(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    summaries = client.list_work_items("ada@acme.com")
+    summaries = client.list_work_items()
 
     assert summaries[0].changed_at == datetime(2024, 5, 6, 12, 33, 41, tzinfo=UTC)
 
@@ -309,21 +303,23 @@ def test_an_unreadable_change_date_is_ignored(monkeypatch: pytest.MonkeyPatch) -
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    summaries = client.list_work_items("ada@acme.com")
+    summaries = client.list_work_items()
 
     assert summaries[0].changed_at is None
 
 
-def test_the_work_items_of_another_user_are_filtered_out(
+def test_the_assignee_is_not_filtered_client_side(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # ``@me`` makes Azure DevOps answer with the right work items: whatever
+    # the payload says about the assignee, the client keeps it.
     client = make_client()
     payload = {
         "value": [
             {
                 "id": 42,
                 "fields": {
-                    "System.Title": "Not mine",
+                    "System.Title": "Resolved by the server",
                     "System.State": "Active",
                     "System.WorkItemType": "User Story",
                     "System.AssignedTo": {
@@ -342,7 +338,10 @@ def test_the_work_items_of_another_user_are_filtered_out(
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    assert client.list_work_items("ada@acme.com") == []
+    summaries = client.list_work_items()
+
+    assert [summary.id.value for summary in summaries] == [42]
+    assert summaries[0].assigned_to == "Alan Turing"
 
 
 def test_the_work_items_of_the_user_are_kept(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -371,7 +370,7 @@ def test_the_work_items_of_the_user_are_kept(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    summaries = client.list_work_items("ada@acme.com")
+    summaries = client.list_work_items()
 
     assert [summary.id.value for summary in summaries] == [42]
 
@@ -501,7 +500,7 @@ def test_an_unauthorized_response_raises_an_authentication_error(
     )
 
     with pytest.raises(AuthenticationError):
-        client.list_work_items("ada@acme.com")
+        client.list_work_items()
 
 
 def test_an_api_error_raises_an_api_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -514,7 +513,7 @@ def test_an_api_error_raises_an_api_error(monkeypatch: pytest.MonkeyPatch) -> No
     )
 
     with pytest.raises(AzureApiError):
-        client.list_work_items("ada@acme.com")
+        client.list_work_items()
 
 
 def test_an_unreachable_api_raises_a_transport_error(
@@ -528,7 +527,7 @@ def test_an_unreachable_api_raises_a_transport_error(
     monkeypatch.setattr(client.session, "request", boom)
 
     with pytest.raises(TransportError):
-        client.list_work_items("ada@acme.com")
+        client.list_work_items()
 
 
 def test_the_requests_use_a_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -541,7 +540,7 @@ def test_the_requests_use_a_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    client.list_work_items("ada@acme.com")
+    client.list_work_items()
 
     assert captured["timeout"] == 12.0
 
@@ -591,7 +590,7 @@ def test_a_forbidden_response_raises_an_authentication_error(
     )
 
     with pytest.raises(AuthenticationError, match="Work Items"):
-        client.list_work_items("ada@acme.com")
+        client.list_work_items()
 
 
 def test_the_error_detail_is_included_in_the_api_error(
@@ -606,7 +605,7 @@ def test_the_error_detail_is_included_in_the_api_error(
     )
 
     with pytest.raises(AzureApiError, match="quota exceeded") as excinfo:
-        client.list_work_items("ada@acme.com")
+        client.list_work_items()
 
     assert excinfo.value.status_code == 500
 
@@ -623,7 +622,7 @@ def test_a_404_on_the_list_query_is_a_not_found_error(
     )
 
     with pytest.raises(WorkItemNotFoundError):
-        client.list_work_items("ada@acme.com")
+        client.list_work_items()
 
 
 def test_a_non_json_error_body_is_still_reported(
@@ -638,7 +637,7 @@ def test_a_non_json_error_body_is_still_reported(
     monkeypatch.setattr(client.session, "request", lambda *args, **kwargs: response)
 
     with pytest.raises(AzureApiError):
-        client.list_work_items("ada@acme.com")
+        client.list_work_items()
 
 
 def test_a_dropped_connection_is_a_transport_error(
@@ -686,7 +685,7 @@ def test_a_batch_response_without_a_value_is_empty(
         work_items={"unexpected": "shape"},
     )
 
-    assert client.list_work_items("ada@acme.com") == []
+    assert client.list_work_items() == []
 
 
 def test_a_list_response_with_non_mapping_entries_is_ignored(
@@ -700,7 +699,7 @@ def test_a_list_response_with_non_mapping_entries_is_ignored(
         work_items={"value": ["not-a-dict", WORK_ITEMS_RESPONSE["value"][0]]},
     )
 
-    summaries = client.list_work_items("ada@acme.com")
+    summaries = client.list_work_items()
 
     assert [summary.id.value for summary in summaries] == [42]
 
@@ -721,7 +720,7 @@ def test_a_list_response_with_non_mapping_fields_is_ignored(
         work_items=payload,
     )
 
-    summaries = client.list_work_items("ada@acme.com")
+    summaries = client.list_work_items()
 
     assert [summary.id.value for summary in summaries] == [42]
     assert summaries[0].title == "Work item 42"
@@ -745,7 +744,7 @@ def test_a_work_item_without_a_readable_id_is_skipped(
         work_items=payload,
     )
 
-    summaries = client.list_work_items("ada@acme.com")
+    summaries = client.list_work_items()
 
     assert [summary.id.value for summary in summaries] == [42]
 
@@ -761,7 +760,7 @@ def test_an_unparseable_wiql_response_is_an_empty_list(
         lambda *args, **kwargs: make_response(["not", "an", "object"]),
     )
 
-    assert client.list_work_items("ada@acme.com") == []
+    assert client.list_work_items() == []
 
 
 def test_a_wiql_response_with_relations_without_an_id_is_ignored(
@@ -776,7 +775,7 @@ def test_a_wiql_response_with_relations_without_an_id_is_ignored(
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
-    summaries = client.list_work_items("ada@acme.com")
+    summaries = client.list_work_items()
 
     assert [summary.id.value for summary in summaries] == [42, 43]
 

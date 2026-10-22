@@ -10,25 +10,31 @@ depends=('python' 'python-typer' 'python-requests' 'python-pydantic' 'python-pyd
 makedepends=('python-build' 'python-installer' 'python-hatchling')
 checkdepends=('python-pytest' 'python-pytest-cov')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/vmgabriel/azure-cli/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP') # ⚠️ Actualizar con el hash real al crear el tag git
+sha256sums=('SKIP') # ⚠️ Actualizar con el hash real en un release formal
 
 build() {
   cd "$pkgname-$pkgver"
-  # Construye el wheel usando el backend declarado en pyproject.toml
-  python -m build --wheel --no-isolation
+  # Forzamos el uso del python del sistema y creamos un entorno aislado limpio
+  /usr/bin/python -m build --wheel
 }
 
 check() {
   cd "$pkgname-$pkgver"
-  # Ejecuta solo pruebas unitarias en el chroot limpio (las de integración requieren PAT)
-  python -m pytest tests/unit
+
+  # 🔑 CLAVE: Añadimos el directorio 'src' al PYTHONPATH.
+  # Esto permite que pytest resuelva las importaciones de 'azure_cli'
+  # antes de que el paquete sea instalado formalmente en el paso package().
+  export PYTHONPATH="$PWD/src:$PYTHONPATH"
+
+  # Ejecutamos solo pruebas unitarias (las de integración requieren PAT y red)
+  /usr/bin/python -m pytest tests/unit -v
 }
 
 package() {
   cd "$pkgname-$pkgver"
-  # Instala el wheel de forma limpia en el directorio de empaquetado
-  python -m installer --destdir="$pkgdir" dist/*.whl
+  # Instalamos el wheel generado en el directorio de empaquetado de Arch
+  /usr/bin/python -m installer --destdir="$pkgdir" dist/*.whl
 
-  # Instala la licencia (requiere que el archivo LICENSE exista en la raíz)
+  # Instalamos el archivo de licencia (Requisito estricto de Arch Linux)
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

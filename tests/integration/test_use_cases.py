@@ -32,22 +32,20 @@ def client(stub: StubAzureDevOps) -> AzureDevOpsClient:
 
 @pytest.fixture
 def settings(stub: StubAzureDevOps) -> AzureDevOpsSettings:
-    """Settings pointing at the stub server, with an e-mail address."""
+    """Settings pointing at the stub server."""
     return AzureDevOpsSettings(
         organization="acme",
         project="widgets",
         pat="fake-token",
         base_url=stub.base_url,
-        default_email="ada@acme.com",
         timeout=5.0,
     )
 
 
 def test_my_work_items_are_listed(
     client: AzureDevOpsClient,
-    settings: AzureDevOpsSettings,
 ) -> None:
-    use_case = ListMyWorkItemsUseCase(client, settings)
+    use_case = ListMyWorkItemsUseCase(client)
 
     summaries = use_case.execute()
 
