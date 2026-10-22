@@ -131,6 +131,42 @@ hatch env create
 hatch run python -m pip install -e ".[dev]"
 ```
 
+### Arch Linux (makepkg / AUR)
+
+Install the build prerequisites:
+
+```bash
+sudo pacman -S --needed base-devel python-build python-installer
+```
+
+Clone the repository, enter it and build the package from the included
+`PKGBUILD`:
+
+```bash
+git clone https://github.com/vmgabriel/azure-cli.git
+cd azure-cli
+makepkg -si
+```
+
+`makepkg -si` builds the package, installs it with `pacman` and resolves its
+dependencies.
+
+> Once the package is published to the AUR, you will be able to install it
+> directly with `yay -S azure-cli` or `paru -S azure-cli`.
+
+After installation, create `~/.azure_cli/config.toml` as described in step 6
+and export your personal access token as described in step 5:
+
+```bash
+export AZURE_DEVOPS_PAT="your-personal-access-token"
+```
+
+Then verify the command:
+
+```bash
+azure-cli --help
+```
+
 ## 4. Create a personal access token
 
 1. Open `https://dev.azure.com/<your-organization>`.
