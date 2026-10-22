@@ -1,0 +1,53 @@
+"""Configuration of the Azure DevOps connection."""
+
+from azure_cli.config.config_loader import (
+    CONFIG_DIR_NAME,
+    CONFIG_FILE_ENV_VAR,
+    DEFAULT_PROFILE,
+    LEGACY_CONFIG_FILE_ENV_VAR,
+    LEGACY_PROFILE_ENV_VAR,
+    PROFILE_ENV_VAR,
+    ConfigLoader,
+    available_profiles,
+    candidate_config_paths,
+    default_config_path,
+    legacy_config_path,
+    load_config,
+    read_config_file,
+    resolve_config_path,
+    resolve_profile,
+    select_profile,
+)
+from azure_cli.config.settings import (
+    DEFAULT_ORGANIZATION,
+    DEFAULT_PROJECT,
+    AzureDevOpsSettings,
+    OutputFormat,
+    TomlProfileSettingsSource,
+    load_settings,
+)
+
+__all__ = [
+    "CONFIG_DIR_NAME",
+    "CONFIG_FILE_ENV_VAR",
+    "DEFAULT_ORGANIZATION",
+    "DEFAULT_PROFILE",
+    "DEFAULT_PROJECT",
+    "LEGACY_CONFIG_FILE_ENV_VAR",
+    "LEGACY_PROFILE_ENV_VAR",
+    "PROFILE_ENV_VAR",
+    "AzureDevOpsSettings",
+    "ConfigLoader",
+    "OutputFormat",
+    "TomlProfileSettingsSource",
+    "available_profiles",
+    "candidate_config_paths",
+    "default_config_path",
+    "legacy_config_path",
+    "load_config",
+    "load_settings",
+    "read_config_file",
+    "resolve_config_path",
+    "resolve_profile",
+    "select_profile",
+]

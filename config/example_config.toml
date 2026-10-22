@@ -1,0 +1,28 @@
+# Default configuration for azure-cli. Place this in ~/.azure_cli/config.toml
+# ==============================================================================
+# azure-cli — example configuration
+# ==============================================================================
+#
+# Copy this file to the default location:
+#
+#   mkdir -p ~/.azure_cli
+#   cp config/example_config.toml ~/.azure_cli/config.toml
+#
+# The personal access token is deliberately absent: export it as
+# AZURE_DEVOPS_PAT instead of storing it in a file.
+#
+# Precedence (highest wins):
+#   CLI flags > environment > .env > this file > built-in defaults
+
+[azure]
+org = "serviciosfintech"
+project = "bold"
+api_version = "7.1"
+
+[user]
+email = "gabriel.vargas@bold.co"
+
+# Optional: For future Slack integration
+[slack]
+channel = "#workitems"
+token = ""

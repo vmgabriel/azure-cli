@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Hatch
+        uses: pypa/hatch@v1
+
+      - name: Install the project
+        run: hatch env create
+
+      - name: Lint
+        run: hatch run lint
+
+      - name: Test
+        run: hatch run pytest --cov=azure_cli --cov-report=term-missing --cov-fail-under=80

@@ -1,0 +1,87 @@
+# Default configuration for azure-cli. Place this in ~/.azure_cli/config.toml
+# ==============================================================================
+# azure-cli — full configuration example
+# ==============================================================================
+#
+# Copy this file to the default location:
+#
+#   mkdir -p ~/.azure_cli
+#   cp config.example.toml ~/.azure_cli/config.toml
+#
+# ... or point AZURE_CLI_CONFIG_PATH at it:
+#
+#   export AZURE_CLI_CONFIG_PATH=~/projects/azure-cli/config.example.toml
+#
+# The previous AZURE_DEVOPS_CONFIG_FILE variable is still accepted.
+#
+# Precedence (highest wins):
+#   1. CLI flags        (--org, --project, --pat, --profile, ...)
+#   2. environment      (AZURE_DEVOPS_ORGANIZATION, AZURE_DEVOPS_PAT, ...)
+#   3. .env file        (the .env file of the project)
+#   4. this file
+#   5. built-in defaults
+#
+# The environment variable names and the flat keys (`azure_org`,
+# `azure_project`, `pat_token`, ...) are also accepted, so files written for
+# older versions keep working.
+
+# -- Options -----------------------------------------------------------------
+#
+# These keys must stay at the root of the file, before any [table].
+
+# HTTP timeout in seconds
+timeout = 15.0
+
+# Terminal output format: text | json
+output_format = "text"
+
+# -- Azure DevOps ------------------------------------------------------------
+
+[azure]
+# Organization: the first path segment of https://dev.azure.com/<organization>
+org = "serviciosfintech"
+
+# Team project holding the work items
+project = "bold"
+
+# REST API version used for every Azure DevOps call
+api_version = "7.1"
+
+# Prefer AZURE_DEVOPS_PAT over keeping the token here.
+# pat = "your-personal-access-token"
+
+# Optional: override the whole API root (Azure DevOps Server / local stubs)
+# base_url = "https://dev.azure.com/serviciosfintech/bold"
+
+# -- User --------------------------------------------------------------------
+
+[user]
+# E-mail whose work items are shown by `azure-cli mine` and are the default
+# filter of `azure-cli list`. Leave it empty to see every work item.
+email = "you@company.com"
+
+# -- Slack -------------------------------------------------------------------
+#
+# Reserved for a future Slack integration; it is stored but not used yet.
+
+[slack]
+channel = "#workitems"
+token = ""
+
+# -- Profiles ----------------------------------------------------------------
+#
+# A file may hold several profiles. The keys above describe the "default"
+# profile; the table of a profile overrides them. Select one with:
+#
+#   azure-cli --profile work list
+#   AZURE_CLI_PROFILE=work azure-cli list
+
+[profiles.work.azure]
+org = "serviciosfintech"
+project = "bold"
+
+[profiles.work.user]
+email = "you@company.com"
+
+[profiles.personal.azure]
+project = "another-project"
