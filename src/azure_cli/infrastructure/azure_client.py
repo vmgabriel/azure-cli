@@ -174,7 +174,9 @@ class AzureDevOpsClient(AzureDevOpsGateway):
             work_item_type = _as_text(fields.get("System.WorkItemType")) or "User Story"
             assigned_to = _assigned_to(assignee)
             story_points = _as_float(fields.get("Microsoft.VSTS.Scheduling.StoryPoints"))
-            url = _as_text(dto.get("url")) or self._work_item_url(work_item_id)
+            # The API ``url`` points at the REST endpoint (``_apis/wit/...``);
+            # users need the browser URL instead.
+            url = self._work_item_url(work_item_id)
             changed_at = _parse_datetime(fields.get("System.ChangedDate"))
 
             try:
@@ -249,7 +251,8 @@ class AzureDevOpsClient(AzureDevOpsGateway):
         area_path = _as_text(fields.get("System.AreaPath"))
         iteration_path = _as_text(fields.get("System.IterationPath"))
         assigned_to = _assigned_to(fields.get("System.AssignedTo"))
-        url = _as_text(payload.get("url")) or self._work_item_url(work_item_id)
+        # Use the browser URL even when the API response carries a REST one.
+        url = self._work_item_url(work_item_id)
         changed_at = _parse_datetime(fields.get("System.ChangedDate"))
 
         try:
@@ -353,7 +356,7 @@ class AzureDevOpsClient(AzureDevOpsGateway):
             json_body={"query": wiql},
         )
         payload = response.json()
-        logger.info(f"Raw WIQL Response: {payload}")
+        logger.debug("Raw WIQL Response received from Azure DevOps")
         if not isinstance(payload, Mapping):
             return []
 

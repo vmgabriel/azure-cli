@@ -54,7 +54,7 @@ class ListMyWorkItemsUseCase:
             AzureApiError: if Azure DevOps returned an unexpected response.
             TransportError: if Azure DevOps could not be reached.
         """
-        logger.info("Listing the work items assigned to the current user")
+        logger.debug("Listing the work items assigned to the current user")
         try:
             summaries = self._gateway.list_work_items()
         except AzureWiError as exc:

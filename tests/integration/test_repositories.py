@@ -57,6 +57,7 @@ def test_the_work_items_of_a_wiql_query_are_mapped(
     work_items = _repository(work_item_client).list("SELECT [System.Id] FROM WorkItems")
 
     assert [item.id.value for item in work_items] == [42]
+    assert work_items[0].url == f"{work_item_client.web_base_url}/_workitems/edit/42"
 
 
 def test_a_created_work_item_is_mapped(

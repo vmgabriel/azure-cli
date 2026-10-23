@@ -45,6 +45,11 @@ class AzureWorkItemApiClient:
         self._api_version = api_version
         self._timeout = timeout
 
+    @property
+    def web_base_url(self) -> str:
+        """Return the browser base URL, without the ``/_apis`` suffix."""
+        return self._api_base_url.removesuffix("/_apis")
+
     # -- reading ------------------------------------------------------------
     def get_work_item(self, work_item_id: int, fields: Sequence[str]) -> WorkItemDto:
         """Return a single work item with the requested fields."""

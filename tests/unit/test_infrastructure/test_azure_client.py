@@ -136,7 +136,7 @@ def test_list_work_items_returns_summaries(monkeypatch: pytest.MonkeyPatch) -> N
     assert summaries[0].type.value == "User Story"
     assert summaries[0].assigned_to == "Ada Lovelace"
     assert summaries[0].story_points == 3.0
-    assert summaries[0].url.endswith("/42")
+    assert summaries[0].url == "https://dev.azure.com/acme/widgets/_workitems/edit/42"
 
 
 def test_list_work_items_queries_the_expected_fields(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -395,6 +395,7 @@ def test_get_workitem_by_id_returns_a_detail(monkeypatch: pytest.MonkeyPatch) ->
     assert detail.title == "Login fails on Safari"
     assert detail.state.value == "Active"
     assert detail.type.value == "Bug"
+    assert detail.url == "https://dev.azure.com/acme/widgets/_workitems/edit/42"
     assert detail.area_path == "Acme/Frontend"
     assert detail.iteration_path == "Acme/Sprint 12"
     assert detail.story_points == 3.0

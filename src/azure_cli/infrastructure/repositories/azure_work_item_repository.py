@@ -102,7 +102,9 @@ class AzureWorkItemRepository(WorkItemRepository):
             iteration_path=_as_text(fields.get(WorkItemField.ITERATION_PATH)),
             assigned_to=_display_name(fields.get(WorkItemField.ASSIGNED_TO)),
             created_by=_display_name(fields.get(WorkItemField.CREATED_BY)),
-            url=dto.url or "",
+            # The ``url`` of the payload is the REST endpoint: show the browser
+            # URL instead.
+            url=f"{self._client.web_base_url}/_workitems/edit/{dto.id}",
         )
 
 
