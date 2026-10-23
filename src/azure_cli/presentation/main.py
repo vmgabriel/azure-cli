@@ -14,11 +14,19 @@ Usage::
 
 from __future__ import annotations
 
+import logging
+import sys
 from importlib.metadata import PackageNotFoundError, version
 
 import typer
 
 from azure_cli.presentation.cli.main import app
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    stream=sys.stdout,
+)
 
 __all__ = ["app", "get_app_version", "main", "version_callback"]
 

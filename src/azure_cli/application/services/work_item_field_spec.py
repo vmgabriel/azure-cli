@@ -43,6 +43,7 @@ class WorkItemFieldSpec:
                 WorkItemField.STATE,
                 WorkItemField.TYPE,
                 WorkItemField.ASSIGNED_TO,
+                WorkItemField.STORY_POINTS,
                 WorkItemField.CHANGED_DATE,
             ),
         )

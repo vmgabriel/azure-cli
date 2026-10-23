@@ -19,6 +19,7 @@ from azure_cli.infrastructure.azure.dto import (
     WorkItemDto,
     WorkItemListDto,
 )
+from azure_cli.infrastructure.debug import debug_print, is_debug, truncate_body
 
 #: Maximum number of ids Azure DevOps accepts in a batch ``ids=`` request.
 MAX_BATCH_SIZE = 200
@@ -90,6 +91,8 @@ class AzureWorkItemApiClient:
             json_body={"query": wiql},
         )
         result = WiqlResultDto.model_validate(response.json())
+        if is_debug():
+            debug_print(f"[DEBUG] WIQL response: {response.text}")
         ids = [relation.id for relation in result.work_item_relations]
         if top is not None:
             ids = ids[:top]
@@ -152,6 +155,12 @@ class AzureWorkItemApiClient:
     ) -> requests.Response:
         """Perform an HTTP call and translate the failures into domain errors."""
         url = f"{self._api_base_url}{path}"
+        if is_debug():
+            debug_print(f"\n[DEBUG] Request: {method} {url}")
+            debug_print(f"[DEBUG] Headers: {self._session.headers}")
+            debug_print(f"[DEBUG] Params: {dict(params) if params else None}")
+            debug_print(f"[DEBUG] Body: {json_body}")
+
         try:
             response = self._session.request(
                 method,
@@ -162,6 +171,10 @@ class AzureWorkItemApiClient:
             )
         except requests.RequestException as exc:
             raise TransportError(f"Could not reach Azure DevOps at {url}: {exc}") from exc
+
+        if is_debug() and (response.status_code != 200 or not response.content):
+            debug_print(f"[DEBUG] Response status: {response.status_code}")
+            debug_print(f"[DEBUG] Response body: {truncate_body(response.text)}")
 
         self._raise_for_status(response, url, not_found_message)
         return response

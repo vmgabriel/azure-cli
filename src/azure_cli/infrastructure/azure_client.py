@@ -43,8 +43,8 @@ from azure_cli.domain.value_objects.tag import Tag
 from azure_cli.domain.value_objects.work_item_id import WorkItemId
 from azure_cli.domain.value_objects.work_item_state import WorkItemState
 from azure_cli.domain.value_objects.work_item_type import WorkItemType
+from azure_cli.infrastructure.debug import debug_print, is_debug, truncate_body
 from azure_cli.infrastructure.html_utils import clean_html
-from azure_cli.infrastructure.http.session import PAT_USER_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ MAX_LIST_ITEMS = 50
 EXCLUDED_STATES = ("Closed", "Done", "Removed")
 
 #: Work item types to include when listing (the requirements say "User Stories").
-LIST_WORK_ITEM_TYPES = ("User Story",)
+LIST_WORK_ITEM_TYPES = ("User Story", "Task", "Bug", "Issue")
 
 #: Fields requested for the list query.
 SUMMARY_FIELDS = (
@@ -115,7 +115,7 @@ class AzureDevOpsClient(AzureDevOpsGateway):
         self.api_base_url = settings.api_base_url
 
         self.session = requests.Session()
-        self.session.auth = HTTPBasicAuth(PAT_USER_NAME, self.pat)
+        self.session.auth = HTTPBasicAuth("", self.pat)
         self.session.headers.update(
             {
                 "Accept": "application/json",
@@ -333,16 +333,14 @@ class AzureDevOpsClient(AzureDevOpsGateway):
         server from the credentials of the request, which avoids knowing (and
         passing around) the e-mail address of the user.
         """
-        excluded = ", ".join(f"'{self._escape_wiql(state)}'" for state in EXCLUDED_STATES)
-        types = ", ".join(f"'{self._escape_wiql(t)}'" for t in LIST_WORK_ITEM_TYPES)
-
         return (
-            "SELECT [System.Id], [System.ChangedDate] "
+            "SELECT [System.Id], [System.Title], [System.State], "
+            "[System.AssignedTo], [System.WorkItemType] "
             "FROM WorkItems "
             f"WHERE [System.TeamProject] = '{self._escape_wiql(self.project)}' "
-            f"AND [System.WorkItemType] IN ({types}) "
+            "AND [System.WorkItemType] = 'User Story' "
             "AND [System.AssignedTo] = @me "
-            f"AND [System.State] NOT IN ({excluded}) "
+            "AND [System.State] NOT IN ('Closed', 'Done', 'Removed') "
             "ORDER BY [System.ChangedDate] DESC"
         )
 
@@ -355,21 +353,20 @@ class AzureDevOpsClient(AzureDevOpsGateway):
             json_body={"query": wiql},
         )
         payload = response.json()
+        logger.info(f"Raw WIQL Response: {payload}")
         if not isinstance(payload, Mapping):
             return []
 
-        relations = payload.get("workItemRelations") or payload.get("work_item_relations") or []
-        if not isinstance(relations, Sequence):
+        work_items = payload.get("workItems") or payload.get("work_items") or []
+        if not isinstance(work_items, Sequence):
             return []
 
         ids: list[int] = []
-        for relation in relations:
-            if not isinstance(relation, Mapping):
+        for item in work_items:
+            if not isinstance(item, Mapping):
                 continue
-            work_item = relation.get("target") or relation
-            if not isinstance(work_item, Mapping):
-                continue
-            work_item_id = _as_int(work_item.get("id"))
+
+            work_item_id = _as_int(item.get("id"))
             if work_item_id is not None:
                 ids.append(work_item_id)
             if len(ids) >= limit:
@@ -512,6 +509,12 @@ class AzureDevOpsClient(AzureDevOpsGateway):
         url = f"{self.api_base_url}{path}"
         request_timeout = timeout if timeout is not None else self.timeout
 
+        if is_debug():
+            debug_print(f"\n[DEBUG] Request: {method} {url}")
+            debug_print(f"[DEBUG] Headers: {self.session.headers}")
+            debug_print(f"[DEBUG] Params: {dict(params) if params else None}")
+            debug_print(f"[DEBUG] Body: {json_body}")
+
         try:
             response = self.session.request(
                 method,
@@ -522,6 +525,10 @@ class AzureDevOpsClient(AzureDevOpsGateway):
             )
         except requests.RequestException as exc:
             raise TransportError(f"Could not reach Azure DevOps at {url}: {exc}") from exc
+
+        if is_debug() and (response.status_code != 200 or not response.content):
+            debug_print(f"[DEBUG] Response status: {response.status_code}")
+            debug_print(f"[DEBUG] Response body: {truncate_body(response.text)}")
 
         self._raise_for_status(response, url, not_found_message)
         return response

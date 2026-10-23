@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Literal
 
 import typer
 
 from azure_cli.application.services.work_item_query import WorkItemFilter
+from azure_cli.infrastructure.debug import set_debug
 from azure_cli.presentation.cli.console import WorkItemRenderer
 from azure_cli.presentation.cli.container import resolve_container
 from azure_cli.presentation.cli.errors import cli_errors
@@ -60,6 +62,7 @@ def register(app: typer.Typer) -> None:
             help="Maximum number of work items to show.",
         ),
         closed: bool = typer.Option(False, "--closed", help="Include the closed work items."),
+        debug: bool = typer.Option(False, "--debug", "-d", help="Enable verbose debug output"),
         output_format: Literal["table", "json"] | None = typer.Option(
             None,
             "--format",
@@ -68,6 +71,10 @@ def register(app: typer.Typer) -> None:
         ),
     ) -> None:
         """List the work items of the project."""
+        if debug:
+            logging.getLogger().setLevel(logging.DEBUG)
+            set_debug(True)
+
         with cli_errors():
             container = resolve_container(ctx)
 

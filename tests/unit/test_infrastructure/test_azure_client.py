@@ -33,7 +33,7 @@ from azure_cli.infrastructure.azure_client import (
 
 WIQL_RESPONSE: dict[str, Any] = {
     "queryType": "flat",
-    "workItemRelations": [{"id": 42}, {"id": 43}],
+    "workItems": [{"id": 42}, {"id": 43}],
 }
 
 WORK_ITEMS_RESPONSE: dict[str, Any] = {
@@ -186,7 +186,7 @@ def test_the_wiql_query_filters_on_the_current_user_and_the_state(
     assert "'Done'" in query
     assert "'Removed'" in query
     assert "[System.State] NOT IN" in query
-    assert "[System.WorkItemType] IN ('User Story')" in query
+    assert "[System.WorkItemType] = 'User Story'" in query
     assert "ORDER BY [System.ChangedDate] DESC" in query
 
 
@@ -194,11 +194,11 @@ def test_list_work_items_returns_at_most_fifty_items(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = make_client()
-    relations = [{"id": index} for index in range(1, 121)]
+    work_items = [{"id": index} for index in range(1, 121)]
 
     def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
         if url.endswith("/wit/wiql"):
-            return make_response({"workItemRelations": relations})
+            return make_response({"workItems": work_items})
         return make_response({"value": []})
 
     monkeypatch.setattr(client.session, "request", fake_request)
@@ -212,12 +212,12 @@ def test_the_story_points_are_fetched_in_batches_of_two_hundred_ids(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = make_client()
-    relations = [{"id": index} for index in range(1, 451)]
+    work_items = [{"id": index} for index in range(1, 451)]
     requested_ids: list[list[str]] = []
 
     def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
         if url.endswith("/wit/wiql"):
-            return make_response({"workItemRelations": relations})
+            return make_response({"workItems": work_items})
         requested_ids.append(kwargs["params"]["ids"].split(","))
         return make_response({"value": []})
 
@@ -237,7 +237,7 @@ def test_list_work_items_without_a_match_returns_an_empty_list(
     client = make_client()
 
     def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
-        return make_response({"workItemRelations": []})
+        return make_response({"workItems": []})
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
@@ -266,7 +266,7 @@ def test_the_change_date_is_read(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
         if url.endswith("/wit/wiql"):
-            return make_response({"workItemRelations": [{"id": 42}]})
+            return make_response({"workItems": [{"id": 42}]})
         return make_response(payload)
 
     monkeypatch.setattr(client.session, "request", fake_request)
@@ -298,7 +298,7 @@ def test_an_unreadable_change_date_is_ignored(monkeypatch: pytest.MonkeyPatch) -
 
     def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
         if url.endswith("/wit/wiql"):
-            return make_response({"workItemRelations": [{"id": 42}]})
+            return make_response({"workItems": [{"id": 42}]})
         return make_response(payload)
 
     monkeypatch.setattr(client.session, "request", fake_request)
@@ -333,7 +333,7 @@ def test_the_assignee_is_not_filtered_client_side(
 
     def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
         if url.endswith("/wit/wiql"):
-            return make_response({"workItemRelations": [{"id": 42}]})
+            return make_response({"workItems": [{"id": 42}]})
         return make_response(payload)
 
     monkeypatch.setattr(client.session, "request", fake_request)
@@ -365,7 +365,7 @@ def test_the_work_items_of_the_user_are_kept(monkeypatch: pytest.MonkeyPatch) ->
 
     def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
         if url.endswith("/wit/wiql"):
-            return make_response({"workItemRelations": [{"id": 42}]})
+            return make_response({"workItems": [{"id": 42}]})
         return make_response(payload)
 
     monkeypatch.setattr(client.session, "request", fake_request)
@@ -536,7 +536,7 @@ def test_the_requests_use_a_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
         captured["timeout"] = kwargs.get("timeout")
-        return make_response({"workItemRelations": []})
+        return make_response({"workItems": []})
 
     monkeypatch.setattr(client.session, "request", fake_request)
 
@@ -681,7 +681,7 @@ def test_a_batch_response_without_a_value_is_empty(
     stub_responses(
         monkeypatch,
         client,
-        wiql={"workItemRelations": [{"id": 42}]},
+        wiql={"workItems": [{"id": 42}]},
         work_items={"unexpected": "shape"},
     )
 
@@ -695,7 +695,7 @@ def test_a_list_response_with_non_mapping_entries_is_ignored(
     stub_responses(
         monkeypatch,
         client,
-        wiql={"workItemRelations": [{"id": 42}]},
+        wiql={"workItems": [{"id": 42}]},
         work_items={"value": ["not-a-dict", WORK_ITEMS_RESPONSE["value"][0]]},
     )
 
@@ -716,7 +716,7 @@ def test_a_list_response_with_non_mapping_fields_is_ignored(
     stub_responses(
         monkeypatch,
         client,
-        wiql={"workItemRelations": [{"id": 42}]},
+        wiql={"workItems": [{"id": 42}]},
         work_items=payload,
     )
 
@@ -740,7 +740,7 @@ def test_a_work_item_without_a_readable_id_is_skipped(
     stub_responses(
         monkeypatch,
         client,
-        wiql={"workItemRelations": [{"id": 42}]},
+        wiql={"workItems": [{"id": 42}]},
         work_items=payload,
     )
 
@@ -763,14 +763,14 @@ def test_an_unparseable_wiql_response_is_an_empty_list(
     assert client.list_work_items() == []
 
 
-def test_a_wiql_response_with_relations_without_an_id_is_ignored(
+def test_a_wiql_response_with_work_items_without_an_id_is_ignored(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = make_client()
 
     def fake_request(method: str, url: str, **kwargs: Any) -> requests.Response:
         if url.endswith("/wit/wiql"):
-            return make_response({"workItemRelations": [{"href": "…"}, {"id": 42}]})
+            return make_response({"workItems": [{"href": "…"}, {"id": 42}]})
         return make_response(WORK_ITEMS_RESPONSE)
 
     monkeypatch.setattr(client.session, "request", fake_request)

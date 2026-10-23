@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+import logging
+import sys
+
 import typer
 
 from azure_cli.presentation.cli.commands import comment, create, detail, get, links, mine, update
 from azure_cli.presentation.cli.commands import config as config_command
 from azure_cli.presentation.cli.commands import list as list_command
 from azure_cli.presentation.cli.container import CliOptions, Container
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    stream=sys.stdout,
+)
 
 app = typer.Typer(
     name="azure-cli",
@@ -43,6 +52,7 @@ def main(
         is_eager=True,
         help="Show the version and exit.",
     ),
+    debug: bool = typer.Option(False, "--debug", "-d", help="Enable verbose debug output"),
     organization: str | None = typer.Option(
         None,
         "--org",
@@ -70,6 +80,11 @@ def main(
     ),
 ) -> None:
     """Interact with Azure DevOps work items from the terminal."""
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+        from azure_cli.infrastructure.debug import set_debug
+
+        set_debug(True)
     if isinstance(ctx.obj, Container):
         # A container was injected by the tests: keep it untouched.
         return

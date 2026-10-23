@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class IdentityDto(BaseModel):
@@ -62,7 +62,9 @@ class WiqlResultDto(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     work_item_relations: list[WorkItemRelationDto] = Field(
-        default_factory=list, alias="workItemRelations"
+        default_factory=list,
+        validation_alias=AliasChoices("workItems", "workItemRelations"),
+        serialization_alias="workItems",
     )
 
 

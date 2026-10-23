@@ -180,7 +180,7 @@ class StubHandler(BaseHTTPRequestHandler):
         self.stub.record("POST", path, parsed.query, body, self._headers())
 
         if path == "/_apis/wit/wiql":
-            self._send(200, {"queryType": "flat", "workItemRelations": [{"id": 42}]})
+            self._send(200, {"queryType": "flat", "workItems": [{"id": 42}]})
         elif path == "/_apis/wit/workitems/$Bug":
             self._send(200, WORK_ITEM_43)
         elif path == "/_apis/wit/workitems/42/comments":
