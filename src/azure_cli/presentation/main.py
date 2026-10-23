@@ -14,9 +14,32 @@ Usage::
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version
+
+import typer
+
 from azure_cli.presentation.cli.main import app
 
-__all__ = ["app", "main"]
+__all__ = ["app", "get_app_version", "main", "version_callback"]
+
+
+def get_app_version() -> str:
+    """Return the installed version of ``azure-cli``.
+
+    Falls back to a development version when the package metadata is not
+    available (for example, when running straight from a source checkout).
+    """
+    try:
+        return version("azure-cli")
+    except PackageNotFoundError:
+        return "0.1.0-dev"
+
+
+def version_callback(value: bool) -> None:
+    """Print the application version and exit when ``--version`` is used."""
+    if value:
+        typer.echo(f"azure-cli version {get_app_version()}")
+        raise typer.Exit()
 
 
 def main() -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from importlib.metadata import PackageNotFoundError
 
 import pytest
 from typer.testing import CliRunner
@@ -15,6 +16,7 @@ from azure_cli.domain.value_objects.work_item_state import WorkItemState
 from azure_cli.domain.value_objects.work_item_type import WorkItemType
 from azure_cli.presentation.cli.container import Container
 from azure_cli.presentation.cli.main import app
+from azure_cli.presentation.main import get_app_version
 from tests.conftest import FakeAzureDevOpsGateway, FakeGitRepository, FakeWorkItemRepository
 
 
@@ -23,6 +25,31 @@ def test_the_help_does_not_need_any_configuration(cli_runner: CliRunner) -> None
 
     assert result.exit_code == 0
     assert "work items" in result.output.lower()
+
+
+@pytest.mark.parametrize("flag", ["--version", "-v"])
+def test_the_version_flag_prints_the_version(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    flag: str,
+) -> None:
+    monkeypatch.setattr("azure_cli.presentation.main.get_app_version", lambda: "9.9.9")
+
+    result = cli_runner.invoke(app, [flag])
+
+    assert result.exit_code == 0
+    assert result.output.strip() == "azure-cli version 9.9.9"
+
+
+def test_the_version_falls_back_when_the_package_is_not_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def missing_package(name: str) -> str:
+        raise PackageNotFoundError(name)
+
+    monkeypatch.setattr("azure_cli.presentation.main.version", missing_package)
+
+    assert get_app_version() == "0.1.0-dev"
 
 
 def test_the_console_script_points_at_the_application() -> None:

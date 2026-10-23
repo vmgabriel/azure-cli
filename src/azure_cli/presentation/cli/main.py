@@ -11,16 +11,38 @@ from azure_cli.presentation.cli.container import CliOptions, Container
 
 app = typer.Typer(
     name="azure-cli",
-    help="Interact with Azure DevOps work items and linked pull requests from the terminal. "
-    "Slack integrations are planned.",
+    help="A comprehensive CLI tool to interact with Azure DevOps: list, view, create and "
+    "update work items, and inspect their linked pull requests and branches.",
     no_args_is_help=True,
     add_completion=False,
 )
 
 
+def get_app_version() -> str:
+    """Return the version of ``azure-cli`` resolved by the entry point module."""
+    from azure_cli.presentation.main import get_app_version as resolve_app_version
+
+    return resolve_app_version()
+
+
+def version_callback(value: bool) -> None:
+    """Print the application version and exit when ``--version`` is used."""
+    if value:
+        typer.echo(f"azure-cli version {get_app_version()}")
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
     ctx: typer.Context,
+    version: bool = typer.Option(
+        None,
+        "--version",
+        "-v",
+        callback=version_callback,
+        is_eager=True,
+        help="Show the version and exit.",
+    ),
     organization: str | None = typer.Option(
         None,
         "--org",
