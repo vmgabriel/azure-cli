@@ -1,6 +1,6 @@
 # Maintainer: Gabriel VM <gabriel.vargas@bold.co>
 pkgname=azure-cli
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc="A comprehensive CLI tool to interact with Azure DevOps (Work Items, PRs, and more)."
 arch=('any')
